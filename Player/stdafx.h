@@ -1,7 +1,9 @@
 #pragma once
 
+#include <malloc.h>
+#include <string>
 #include <Windows.h>
 #include <windowsx.h>
 #include <Strsafe.h>
-#include <malloc.h>
-#include <string>
+#include <atlbase.h>
+#include <ShObjIdl.h>
