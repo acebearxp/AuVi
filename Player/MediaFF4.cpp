@@ -74,13 +74,13 @@ void MediaFF4::readFrames(AVFormatContext *pFmtCtx, AVCodecContext *pCodecCtx, i
 
     int align = 4; // windows要求每行4字节对齐
     int width = pCodecCtx->width / 2, height = pCodecCtx->height / 2; // scale to 1/2
-    int size = av_image_get_buffer_size(AV_PIX_FMT_RGB24, width, height, align);
+    int size = av_image_get_buffer_size(AV_PIX_FMT_BGR24, width, height, align);
     uint8_t* pBuf = static_cast<uint8_t*>(av_malloc(size));
-    av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, pBuf, AV_PIX_FMT_RGB24, width, height, align);
+    av_image_fill_arrays(pFrameRGB->data, pFrameRGB->linesize, pBuf, AV_PIX_FMT_BGR24, width, height, align);
 
     // 准备拷贝帧图像
     SwsContext* pSwsCtx = sws_getContext(pCodecCtx->width, pCodecCtx->height, pCodecCtx->pix_fmt,
-        width, height, AV_PIX_FMT_RGB24,
+        width, height, AV_PIX_FMT_BGR24,
         SWS_FAST_BILINEAR, NULL, NULL, NULL);
 
     int nRet = 0, i = 0;
@@ -93,11 +93,11 @@ void MediaFF4::readFrames(AVFormatContext *pFmtCtx, AVCodecContext *pCodecCtx, i
                 nRet = avcodec_receive_frame(pCodecCtx, pFrame);
             } while (nRet == AVERROR(EAGAIN));
             
-            if (i == 500) {
+            //if (i == 500) {
                 sws_scale(pSwsCtx, pFrame->data, pFrame->linesize, 0, pCodecCtx->height, pFrameRGB->data, pFrameRGB->linesize);
                 render(pFrameRGB, width, height);
-                break;
-            }
+            //    break;
+            //}
             i++;
         }
         av_packet_unref(&packet);
@@ -113,14 +113,14 @@ void MediaFF4::render(AVFrame* pFrame, int width, int height)
     HDC hdc = GetDC(m_hwnd);
 
     // pixel data
-    for (int y = 0; y < height; y++) {
+    /*for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             uint8_t *pBuf = pFrame->data[0] + y * pFrame->linesize[0] + x * 3;
             SetPixel(hdc, x, y, RGB(pBuf[0], pBuf[1], pBuf[2]));
         }
-    }
+    }*/
 
-    /*BITMAPINFO bmpInfo;
+    BITMAPINFO bmpInfo;
     ZeroMemory(&bmpInfo, sizeof(BITMAPINFO));
     bmpInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmpInfo.bmiHeader.biWidth = width;
@@ -130,11 +130,17 @@ void MediaFF4::render(AVFrame* pFrame, int width, int height)
     bmpInfo.bmiHeader.biCompression = BI_RGB;
 
     BYTE* pBuf = NULL;
+    bmpInfo.bmiHeader.biHeight *= -1; // BMP 方向调整
     HBITMAP hBmp = CreateDIBSection(hdc, &bmpInfo, DIB_RGB_COLORS, (void**)&pBuf, NULL, 0);
+    bmpInfo.bmiHeader.biHeight *= -1;
     int size = pFrame->linesize[0] * height;
     memcpy_s(pBuf, size, pFrame->data[0], size);
 
+    HDC hdcMem = CreateCompatibleDC(hdc);
+    SelectBitmap(hdcMem, hBmp);
+    BitBlt(hdc, 0, 0, width, height, hdcMem, 0, 0, SRCCOPY);
 
-    DeleteBitmap(hBmp);*/
+    DeleteDC(hdcMem);
+    DeleteBitmap(hBmp);
     ReleaseDC(m_hwnd, hdc);
 }
